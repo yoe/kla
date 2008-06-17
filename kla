@@ -49,7 +49,7 @@ if($action eq "adduser") {
 			return $_;
 		}, sub {
 			my $e = shift;
-			print STDERR $e 
+			print STDERR "$e\n";
 		}
 	);
 } elsif($action eq "addgroup") {
