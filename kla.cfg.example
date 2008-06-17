@@ -1,0 +1,12 @@
+binddn=uid=wouter,ou=People,dc=grep,dc=be
+groupclasses=top:posixGroup
+ldapuri=ldap://samba.grep.be
+realm=GREP.BE
+userbase=ou=People,dc=grep,dc=be
+userask=firstname:Enter first name|lastname:Enter last name|trustmodel:Enter the access type:d:fullaccess|accessTo:What hosts should the user have access to:m:accessto
+userclasses=top:inetOrgPerson:person:organizationalPerson:shadowAccount:uidObject:posixAccount:trustAccount
+uservals=cn:$firstname $lastname|sn:$lastname|givenName:$firstname|uid:$user|homeDirectory:/home/$user|trustModel:$trustmodel|loginShell:/bin/bash|gecos:$firstname $lastname|userPassword:{SASL}$user\@realm|dn:uid=$user,ou=People,dc=grep,dc=be|uidNumber:$uidnumber|gidNumber:2000
+minuid=2000
+maxuid=10000
+mingid=2000
+maxgid=10000
