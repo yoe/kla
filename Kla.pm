@@ -390,7 +390,7 @@ sub add_elem($$\&\&\%) {
 		my @attr = split(/:/, $attr);
 		$attrs{$attr[0]} = apply_string_template($attr[1], %$vals);
 	}
-	foreach (split /\|/, $self->{"${elemname}classes}"}) {
+	foreach (split /:/, $self->{"${elemname}classes}"}) {
 		push @objclass, $_;
 	}
 	$attrs{objectClass} = \@objclass;
