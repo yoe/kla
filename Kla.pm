@@ -331,6 +331,8 @@ sub add_elem($$\&\&\%) {
 	my %attrs;
 	my $attr;
 	my @objclass = ();
+	my $res;
+	my $dn;
 
 	if(!defined($self->{"${elemname}vals"}) || !defined($self->{"${elemname}ask"})) {
 		die "configuration incomplete for creating ${elemname}s.";
@@ -390,12 +392,14 @@ sub add_elem($$\&\&\%) {
 		my @attr = split(/:/, $attr);
 		$attrs{$attr[0]} = apply_string_template($attr[1], %$vals);
 	}
-	foreach (split /:/, $self->{"${elemname}classes}"}) {
+	foreach (split /:/, $self->{"${elemname}classes"}) {
 		push @objclass, $_;
 	}
 	$attrs{objectClass} = \@objclass;
-	$ent = Net::LDAP::Entry->new($attrs{dn}, %attrs);
-	$self->{priv_ldapobj}->add($ent);
+	$dn = delete $attrs{dn};
+	$ent = Net::LDAP::Entry->new($dn, %attrs);
+	$res = $self->{priv_ldapobj}->add($ent);
+	$res->code && die $res->error;
 }
 
 sub createuser($$\&\&) {
@@ -412,7 +416,7 @@ sub createuser($$\&\&) {
 	$res->code && die $res->error;
 	die "Could not create user: user already exists\n" if $res->count();
 	$self->findHighestUid();
-	$$vars{uidNumber} = $self->{priv_minuid} + 1;
+	$$vars{uidnumber} = $self->{priv_minuid} + 1;
 	$$vars{user} = $user;
 	$self->add_elem("user", $asksub, $errsub, $vars);
 }
