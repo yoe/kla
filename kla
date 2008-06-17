@@ -1,0 +1,59 @@
+#!/usr/bin/perl
+
+use Kla;
+use Getopt::Long;
+
+my $action;
+my $user;
+my @groups=();
+my $pw;
+my $help;
+my $firstname;
+my $lastname;
+my @accessto=();
+my @member=();
+
+my $kla = Kla->new;
+
+$result = GetOptions("action|a=s"	=> \$action,
+		     "user|u=s"		=> \$user,
+		     "group|g=s"	=> \@groups,
+		     "password|p=s"	=> \$pw,
+		     "firstname=s"	=> \$firstname,
+		     "lastname=s"	=> \$lastname,
+		     "trustmode=s"	=> \$trustmode,
+		     "accessto=s"	=> \@accessto,
+		     "member=s"		=> \@members,
+		     "help|h"		=> \$help);
+if($help) {
+	print "foo\n";
+	exit;
+}
+
+if(!defined($action)) {
+	die "Need an action\n";
+}
+
+if($action eq "adduser") {
+	if(!defined($user)) {
+		die "Need a username\n";
+	}
+
+	$kla->bind();
+
+	$kla->createuser($user, sub { 
+			my $p = shift;
+			print "$p: ";
+			$_=<STDIN>;
+			chomp;
+			return $_;
+		}, sub {
+			my $e = shift;
+			print STDERR $e 
+		}
+	);
+} elsif($action eq "addgroup") {
+	my %hash;
+} else {
+	die "Invalid action\n";
+}
