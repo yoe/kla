@@ -36,17 +36,74 @@ kla - Kerberos Ldap Admin, command line
 
 =head1 SYNOPSIS
 
-kla -a adduser -u <username> -g group1 -g group2 -g group3 [ --firstname firstname --lastname lastname --trustmode (fullaccess|hostbased) --accessto hostname1 [ --accessto hostname2 ...] --password s3cr1t ]
+C<kla -a adduser -u <username> -g group1 -g group2 -g group3 [ --firstname firstname --lastname lastname --trustmode (fullaccess|hostbased) --accessto hostname1 [ --accessto hostname2 ...] --password s3cr1t ]>
 
-kla --action addgroup --group <groupname> --member <member1> [ --member <member2> ... ]
+C<kla --action addgroup --group <groupname> --member <member1> [ --member <member2> ... ]>
 
-kla --action password [ --user <username> --password h4x0r3d ]
+C<kla --action password [ --user <username> --password h4x0r3d ]>
 
-kla --action deluser [ --user <username> ]
+C<kla --action deluser [ --user <username> ]>
 
-kla --action delgroup [ --group <groupname> [ --group <groupname> ... ] ]
+C<kla --action delgroup [ --group <groupname> [ --group <groupname> ... ] ]>
 
-kla -a addmember [ --group <groupname> --member <member> [ --member <member> ...] ]
+C<kla -a addmember [ --group <groupname> --member <member> [ --member <member> ...] ]>
+
+=head1 DESCRIPTION
+
+The kla command-line utility uses Kla.pm to create and maintain users
+and groups in LDAP and Kerberos. In doing so, it tries to mimick the
+Debian "adduser" program's behaviour to some extent.
+
+For most actions, you have two options: either use the command-line
+options, or just specify the action and have the system ask you
+questions.
+
+Kla comes with a set of default configuration files that define what
+happens when you create a new user or group, but it is possible to
+change them. See L<Kla(3)> for
+details.
+
+=head1 ACTIONS
+
+Kla has one required command-line option: C<-a> or C<--action>, which
+takes one value: the action to be performed during this kla session.
+Exactly one action is B<required>. The meaning of the other command-line
+options depends on the chosen action.
+
+The available actions are:
+
+=over
+
+=item *
+
+adduser, deluser: add and remove users
+
+=item *
+
+addgroup, delgroup: add and remove groups
+
+=item *
+
+password: change your own password, or that of another user if you have
+admin rights
+
+=item *
+
+addmember: add (a) user(s) to a group.
+
+=back
+
+=head2 adduser
+=head2 addgroup
+
+These take one required argument -- the user or group to add. The other
+arguments are all optional; if they are not specified, and the default
+configuration is used, then the system will ask for them interactively.
+Use of the --password option is not recommended on multi-user systems or
+systems that store shell history files, for security reasons.
+
+The specified password is the password for the new user; if the system
+needs an administrator password, it will ask for it clearly.
 
 =cut
 
