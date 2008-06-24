@@ -2,6 +2,8 @@
 
 use Kla;
 use Getopt::Long;
+use Pod::Usage;
+#use Curses; -- need to hide passwords...
 
 my $action;
 my $user;
@@ -25,13 +27,35 @@ $result = GetOptions("action|a=s"	=> \$action,
 		     "accessto=s"	=> \@accessto,
 		     "member=s"		=> \@members,
 		     "help|h"		=> \$help);
+
+=pod
+
+=head1 NAME
+
+kla - Kerberos Ldap Admin, command line
+
+=head1 SYNOPSIS
+
+kla -a adduser -u <username> -g group1 -g group2 -g group3 [ --firstname firstname --lastname lastname --trustmode (fullaccess|hostbased) --accessto hostname1 [ --accessto hostname2 ...] --password s3cr1t ]
+
+kla --action addgroup --group <groupname> --member <member1> [ --member <member2> ... ]
+
+kla --action password [ --user <username> --password h4x0r3d ]
+
+kla --action deluser [ --user <username> ]
+
+kla --action delgroup [ --group <groupname> [ --group <groupname> ... ] ]
+
+kla -a addmember [ --group <groupname> --member <member> [ --member <member> ...] ]
+
+=cut
+
 if($help) {
-	print "foo\n";
-	exit;
+	pod2usage(0);
 }
 
 if(!defined($action)) {
-	die "Need an action\n";
+	pod2usage(1);
 }
 
 if($action eq "adduser") {

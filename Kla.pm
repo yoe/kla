@@ -90,13 +90,13 @@ binddn_template=uid=\" . $ENV{USER} . \",ou=People,dc=nixsys,dc=be
 
 =item ldapgroupbase
 
-The LDAP base for group entries. Example:
+The LDAP search base for group entries. Example:
 
 ldapgroupbase=ou=Groups,dc=nixsys,dc=be
 
 =item ldapuserbase
 
-The LDAP base for user entries. Example:
+The LDAP search base for user entries. Example:
 
 ldapuserbase=ou=People,dc=nixsys,dc=be
 
@@ -130,19 +130,46 @@ The minimum correct value to be used for gidNumber attributes. Example:
 
 mingid=2000
 
-=item newgroup_template
+=item <type>ask
 
-The template used when creating a new group. Currently, can only be set
-from code. The template should be in LDIF format, with interpolated
-variable names where a specific value should be added. See the referenc
-on the creategroup() sub for more details.
+The definitions of a number of questions that can be asked for creating
+a <type>. The value of this configuration value is a set of definitions
+separated by the bar ('|') symbol; each of these definitions consists of
+a set of colon-separated values. The first two of these are a variable
+name and a prompt that is shown when the user needs to enter some data;
+the data that is entered is then stored in a variable of the given name,
+in a separate scope. The third field is optional, and can contain
+options; valid options are 'd', for default value (which is then given
+as a fourth field), 'o' for 'optional' (meaning that the user can leave
+this field empty), and 'm' for 'multi-value'. The option 'm' implies
+'o', and 'd' and 'o' are mutually exclusive; as such, it is not
+necessary to enter more than one option in the same question definition.
 
-=item newuser_template
+The values that are set using these questions are used in the
+'<type>vals' option, see below.
 
-The template used when creating a new user. Currently, can only be set
-from code. The template should be in LDIF format, with interpolated
-variable names where a specific value should be added. See the reference
-on the createuser() sub for more details.
+Example:
+
+userask=firstname:Enter first name|lastname:Enter last name
+
+=item <type>classes
+
+A set of colon-separated strings enumerating the objectClasses that a
+<type> should be assigned. Example:
+
+userclasses=top:inetOrgPerson:organizationalPerson:shadowAccount:uidObject:posixAccount:trustAccount
+
+=item <type>vals
+
+A set of bar-separated templates that the system will evaluate using the
+apply_string_template() sub in order to create attributes for a <type> object.
+A template can contain any values set using the <type>ask configuration
+value. For creating users, the system additionally sets $user
+(containing the username that was used in the API call) and $uidnumber
+(containing the generated UID number); for groups, the system will set
+$group and $gidnumber. Example:
+
+uservals=cn: $firstname $lastname|sn: $lastname|givenName: $firstname|uid: $user|homeDirectory:/home/$user|loginShell:/bin/bash|gecos:$firstname $lastname|userPassword: {SASL}$user\@REALM|dn: uid=$user,ou=People,dc=grep,dc=be|uidNumber: $uidnumber|gidNumber: 2000
 
 =back
 
@@ -432,7 +459,7 @@ attributes.
 
 The last argument should be a reference to a hash. This hash will be
 used together with the newgroup_template configuration value and the
-apply_template method to generate the LDIF code for the group, after
+apply_string_template method to generate the LDIF code for the group, after
 which it will be created.
 
 If creating the group fails for some reason, then creategroup() will die
