@@ -116,13 +116,27 @@ if(!defined($action)) {
 }
 
 if($action eq "adduser") {
+	my %vars;
+	
 	if(!defined($user)) {
 		die "Need a username\n";
+	}
+	if(defined $firstname) {
+		$vars{firstname}=$firstname;
+	}
+	if(defined $lastname) {
+		$vars{lastname}=$lastname;
+	}
+	if(defined $trustmode) {
+		$vars{trustmode}=$trustmode;
+	}
+	if(defined $accessto) {
+		$vars{accessto}=\@accessto;
 	}
 
 	$kla->bind();
 
-	$kla->createuser($user, sub { 
+	$kla->createuser($user, \@groups, sub { 
 			my $p = shift;
 			print "$p: ";
 			$_=<STDIN>;
@@ -131,7 +145,7 @@ if($action eq "adduser") {
 		}, sub {
 			my $e = shift;
 			print STDERR "$e\n";
-		}
+		}, \%vars
 	);
 } elsif($action eq "addgroup") {
 	my %hash;

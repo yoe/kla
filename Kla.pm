@@ -423,14 +423,15 @@ sub add_elem($$\&\&\%) {
 	$res->code && die $res->error;
 }
 
-sub createuser($$\&\&) {
+sub createuser($$\@\&\&\%) {
 	my $self=shift;
 	my $user=shift;
+	my $groups=shift;
 	my $asksub = shift;
 	my $errsub = shift;
 	my $res;
 	my $ldap = $self->{priv_ldapobj};
-	my $vars = {};
+	my $vars = shift;
 
 	need_ldap();
 	$res = $ldap->search(base => $self->{userbase},
@@ -441,6 +442,10 @@ sub createuser($$\&\&) {
 	$$vars{uidnumber} = $self->{priv_minuid} + 1;
 	$$vars{user} = $user;
 	$self->add_elem("user", $asksub, $errsub, $vars);
+	my @members = ( $user );
+	for my $group (@$groups) {
+		$self->addmembers($group, @members);
+	}
 }
 
 =pod
@@ -494,6 +499,7 @@ sub creategroup($$\@\%) {
 		$template .= "\nmemberUid = $member";
 	}
 	$self->add_entry($template, $vals);
+	$self->addmembers($group, $members);
 }
 
 =pod
