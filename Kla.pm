@@ -4,6 +4,8 @@ package Kla;
 
 use Net::LDAP;
 use Authen::SASL qw(Perl);
+use Authen::Krb5;
+use File::Temp qw(:mktemp);
 use strict;
 use warnings;
 
@@ -158,10 +160,6 @@ scalar with the name of the key of that hash value. For example,
 consider a template like this:
 
  dn: uid=$user, ou=People, dc=nixsys, dc=be
- uid: $user
- objectClass: posixAccount
- objectClass: top
- objectClass: uidObject
 
 Then the following:
 
@@ -170,10 +168,6 @@ Then the following:
 will return:
 
  dn: uid=wouter, ou=People, dc=nixsys, dc=be
- uid: wouter
- objectClass: posixAccount
- objectClass: top
- objectClass: uidObject
 
 =cut
 
@@ -410,7 +404,8 @@ sub createuser($$\&\&) {
 	my $res;
 	my $ldap = $self->{priv_ldapobj};
 	my $vars = {};
-	
+
+	need_ldap();
 	$res = $ldap->search(base => $self->{userbase},
 			     filter => "(&(objectClass=posixAccount)(uid=$user))");
 	$res->code && die $res->error;
@@ -487,6 +482,27 @@ operations, see login().
 sub login_admin($$) {
 	my $self = shift;
 	my $pw = shift;
+	my $ctx;
+	my $cc;
+	my $tmpfile;
+
+	if(!exists($self->{krbctx})) {
+		$self->{ctx} = Authen::Krb5::init_context();
+	}
+	if(!exists($self->{realm})) {
+		$self->{realm} = Authen::Krb5::get_default_realm();
+	}
+	if(!exists($self->{kadm_princ})) {
+		$self->{kadm_princ} = $ENV{USER} . "/admin\@" . $self->{realm};
+	}
+	if(!exists($self->{kadm_cc})) {
+		my $client=parse_name($self->{kadm_princ});
+		my $server=parse_name("kadmin/admin\@" . $self->{realm});
+
+		$tmpfile = mktemp("/tmp/krb5_adm_$<_XXXXXXX");
+		$cc = Authen::Krb5::cc_resolve("FILE:$tmpfile");
+		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $self->{kadm_cc});
+	}
 }
 
 =pod
