@@ -88,6 +88,13 @@ Example:
 
 binddn_template=uid=\" . $ENV{USER} . \",ou=People,dc=nixsys,dc=be
 
+=item kadm_princ
+
+The principal used for administrator privileges. If unset, then
+'username/admin@REALM' is used. Example:
+
+kadm_princ=wouter/admin@GREP.BE
+
 =item ldapgroupbase
 
 The LDAP search base for group entries. Example:
@@ -129,6 +136,11 @@ minuid=2000
 The minimum correct value to be used for gidNumber attributes. Example:
 
 mingid=2000
+
+=item realm
+
+The kerberos realm. If not set, the system-wide default realm (as
+configured in /etc/krb5.conf) is used.
 
 =item <type>ask
 
@@ -446,6 +458,8 @@ sub createuser($$\@\&\&\%) {
 	for my $group (@$groups) {
 		$self->addmembers($group, @members);
 	}
+	need_krb();
+
 }
 
 =pod
@@ -519,7 +533,7 @@ sub login_admin($$) {
 	my $cc;
 	my $tmpfile;
 
-	if(!exists($self->{krbctx})) {
+	if(!exists($self->{priv_krbctx})) {
 		$self->{ctx} = Authen::Krb5::init_context();
 	}
 	if(!exists($self->{realm})) {
@@ -528,13 +542,15 @@ sub login_admin($$) {
 	if(!exists($self->{kadm_princ})) {
 		$self->{kadm_princ} = $ENV{USER} . "/admin\@" . $self->{realm};
 	}
-	if(!exists($self->{kadm_cc})) {
+	if(!exists($self->{priv_kadm_cc})) {
 		my $client=parse_name($self->{kadm_princ});
 		my $server=parse_name("kadmin/admin\@" . $self->{realm});
+		my $error;
 
 		$tmpfile = mktemp("/tmp/krb5_adm_$<_XXXXXXX");
 		$cc = Authen::Krb5::cc_resolve("FILE:$tmpfile");
-		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $self->{kadm_cc});
+		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $cc) or die "Could not log on to Kerberos as administrator:" . error(error());
+		$self->{priv_kadm_cc} = $cc;
 	}
 }
 
@@ -550,6 +566,10 @@ to generate a principal based on the user.
 sub setpassword($$) {
 	my $self = shift;
 	my $newpw = shift;
+	
+	if(!defined($newpw) {
+		
+	}
 }
 
 sub findHighestUid($) {
