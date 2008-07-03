@@ -458,8 +458,12 @@ sub createuser($$\@\&\&\%) {
 	for my $group (@$groups) {
 		$self->addmembers($group, @members);
 	}
-	need_krb();
-
+	need_admin_krb();
+	# kadmin wants to warn us that the credentials cache hasn't been
+	# destroyed. That's all nice and dandy, but we don't need no stinking
+	# beeping, thanks.
+	open KADMIN, "kadmin -c " . $self->{priv_kadm_cc} . "-q addprinc -randkey $user\@" . $self->{realm} . "|";
+	while(<KADMIN>) { }
 }
 
 =pod
