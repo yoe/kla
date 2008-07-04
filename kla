@@ -3,7 +3,7 @@
 use Kla;
 use Getopt::Long;
 use Pod::Usage;
-#use Curses; -- need to hide passwords...
+use IO::Stty;
 
 my $action;
 my $user;
@@ -116,7 +116,9 @@ if(!defined($action)) {
 }
 
 if($action eq "adduser") {
+	my $pw;
 	my %vars;
+	my $mode;
 	
 	if(!defined($user)) {
 		die "Need a username\n";
@@ -135,6 +137,14 @@ if($action eq "adduser") {
 	}
 
 	$kla->bind();
+	print 'Please enter your administrator password: ';
+	$mode = IO::Stty::stty(\*STDIN, '-g');
+	IO::Stty::stty(\*STDIN, '-echo');
+	$pw = <>;
+	IO::Stty::stty(\*STDIN, $mode);
+	print "\n";
+	chomp $pw;
+	$kla->login_admin($pw);
 
 	$kla->createuser($user, \@groups, sub { 
 			my $p = shift;
@@ -147,6 +157,7 @@ if($action eq "adduser") {
 			print STDERR "$e\n";
 		}, \%vars
 	);
+	kla->setpassword($password);
 } elsif($action eq "addgroup") {
 	my %hash;
 } else {
