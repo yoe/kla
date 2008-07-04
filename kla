@@ -157,7 +157,7 @@ if($action eq "adduser") {
 			print STDERR "$e\n";
 		}, \%vars
 	);
-	kla->setpassword($password);
+	$kla->setpassword($password);
 } elsif($action eq "addgroup") {
 	my %hash;
 } else {
