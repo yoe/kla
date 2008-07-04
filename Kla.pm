@@ -302,6 +302,7 @@ sub DESTROY($) {
 		}
 		close($cachefile);
 	}
+	$self->logout_admin();
 }
 
 sub add_entry($$\%) {
@@ -556,6 +557,25 @@ sub login_admin($$) {
 		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $cc) or die "Could not log on to Kerberos as administrator:" . error(error());
 		$self->{priv_kadm_cc} = $cc;
 	}
+}
+
+=pod
+
+=item logout_admin( )
+
+This subroutine destroys the credentials cache created with
+login_admin(). Calling it is optional; the destructor will take care of
+it if you forget.
+
+=cut
+
+sub logout_admin($) {
+	my $self = shift;
+
+	if(!exists($self->{priv_kadm_cc})) {
+		return;
+	}
+	$self->{priv_kadm_cc}->destroy();
 }
 
 =pod
