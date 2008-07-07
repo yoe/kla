@@ -436,6 +436,25 @@ sub add_elem($$\&\&\%) {
 	$res->code && die $res->error;
 }
 
+=pod
+
+=item createuser(USER, GROUPS, ASKSUB, ERRSUB, VARS)
+
+Create a new user. USER should be the requested username. If this
+username already exists, creating the user will fail. GROUPS must be a
+reference to an array containing the groups of which the user should be
+made a member. If the user should not be a member of any group
+initially, then GROUPS should be a reference to an empty array. ASKSUB
+should be a subroutine that will be used to ask the user a question in
+case the userask configuration value requires data that isn't specified
+in VARS; ERRSUB should output an error message in case the user enters
+something incorrectly through ASKSUB. VARS may contain any data that is
+defined in the userask configuration value; it will be used together
+with the uservals and the userclasses configuration parameters to define
+the new user.
+
+=cut
+
 sub createuser($$\@\&\&\%) {
 	my $self=shift;
 	my $user=shift;
@@ -469,7 +488,7 @@ sub createuser($$\@\&\&\%) {
 
 =pod
 
-=item creategroup(GROUPNAME, MEMBERS, VARIABLES)
+=item creategroup(GROUPNAME, MEMBERS, ASKSUB, ERRSUB, VARIABLES)
 
 Creates a new group.
 
@@ -491,7 +510,7 @@ with an appropriate error message.
 
 =cut
 
-sub creategroup($$\@\%) {
+sub creategroup($$\@\&\&\%) {
 	my $self = shift;
 	my $group = shift;
 	my $members = shift;
@@ -591,7 +610,7 @@ sub setpassword($$) {
 	my $self = shift;
 	my $newpw = shift;
 	
-	if(!defined($newpw) {
+	if(!defined($newpw)) {
 		
 	}
 }
