@@ -198,7 +198,7 @@ if($action eq "adduser") {
 	$kla->bind();
 	$kla->deluser($user);
 } elsif($action eq "delgroup") {
-	if(scalar(@groups)!=1)
+	if(scalar(@groups)!=1) {
 		die "Need exactly one group name";
 	}
 	$kla->bind();
@@ -219,6 +219,6 @@ if($action eq "adduser") {
 	$kla->bind();
 	$kla->makeadmin($user);
 } else {
-	print STDERR, "Invalid action"
+	print STDERR "Invalid action";
 	pod2usage(1);
 }
