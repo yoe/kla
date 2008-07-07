@@ -15,6 +15,19 @@ my $lastname;
 my @accessto=();
 my @member=();
 
+sub ask($) {
+	my $p = shift;
+	print "$p: ";
+	$_=<STDIN>;
+	chomp;
+	return $_;
+}
+
+sub err($) {
+	my $e = shift;
+	print STDERR "$e\n";
+}
+
 my $kla = Kla->new;
 
 $result = GetOptions("action|a=s"	=> \$action,
@@ -146,20 +159,15 @@ if($action eq "adduser") {
 	chomp $pw;
 	$kla->login_admin($pw);
 
-	$kla->createuser($user, \@groups, sub { 
-			my $p = shift;
-			print "$p: ";
-			$_=<STDIN>;
-			chomp;
-			return $_;
-		}, sub {
-			my $e = shift;
-			print STDERR "$e\n";
-		}, \%vars
-	);
+	$kla->createuser($user, \@groups, \&ask, \&err, \%vars);
 	$kla->setpassword($password);
 } elsif($action eq "addgroup") {
 	my %hash;
+
+	if(scalar(@groups)!=1) {
+		die "Need exactly one group when adding groups";
+	}
+	$kla->creategroup($groups[0], \@members, \&ask, \&err, \%hash);
 } else {
 	die "Invalid action\n";
 }
