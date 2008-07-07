@@ -180,9 +180,11 @@ if($action eq "adduser") {
 	$kla->creategroup($groups[0], \@members, \&ask, \&err, \%hash);
 } elsif($action eq "password") {
 	if(!defined $user) {
-		die "Please specify the username whose password to change,\nor use kpasswd to change your own";
+		die "Please specify the username whose password to change,\nor use kpasswd to change your own\n";
 	}
 	if(!defined($pw)) {
+		print "Please enter the new password:";
+		print "Please re-enter the same password, for verification:";
 		my $mode = IO::Stty::stty(\*STDIN, '-g');
 		IO::Stty::stty(\*STDIN, '-echo');
 		$pw=<>;

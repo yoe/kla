@@ -436,6 +436,22 @@ sub add_elem($$\&\&\%) {
 	$res->code && die $res->error;
 }
 
+sub need_ldap($) {
+	my $self = shift;
+
+	if(!exists($self->{priv_ldapobj})) {
+		die "Programmer error: need LDAP connection before this action can be performed!";
+	}
+}
+
+sub need_admin_krb($) {
+	my $self = shift;
+
+	if(!exists($self->{priv_kadm_cc})) {
+		die "Programmer error: need to logon to Kerberos as admin first";
+	}
+}
+
 =pod
 
 =item createuser(USER, GROUPS, ASKSUB, ERRSUB, VARS)
@@ -465,7 +481,7 @@ sub createuser($$\@\&\&\%) {
 	my $ldap = $self->{priv_ldapobj};
 	my $vars = shift;
 
-	need_ldap();
+	$self->need_ldap();
 	$res = $ldap->search(base => $self->{userbase},
 			     filter => "(&(objectClass=posixAccount)(uid=$user))");
 	$res->code && die $res->error;
@@ -478,12 +494,13 @@ sub createuser($$\@\&\&\%) {
 	for my $group (@$groups) {
 		$self->addmembers($group, @members);
 	}
-	need_admin_krb();
+	$self->need_admin_krb();
 	# kadmin wants to warn us that the credentials cache hasn't been
 	# destroyed. That's all nice and dandy, but we don't need no stinking
 	# beeping, thanks.
-	open KADMIN, "kadmin -c " . $self->{priv_kadm_cc} . "-q addprinc -randkey $user\@" . $self->{realm} . "|";
+	open KADMIN, "/usr/sbin/kadmin -r " . $self->{realm} . " -c " . $self->{priv_kadm_ccname} . " -q 'addprinc -randkey $user\@" . $self->{realm} . "'|";
 	while(<KADMIN>) { }
+	close KADMIN;
 }
 
 =pod
@@ -567,14 +584,15 @@ sub login_admin($$) {
 		$self->{kadm_princ} = $ENV{USER} . "/admin\@" . $self->{realm};
 	}
 	if(!exists($self->{priv_kadm_cc})) {
-		my $client=parse_name($self->{kadm_princ});
-		my $server=parse_name("kadmin/admin\@" . $self->{realm});
+		my $client=Authen::Krb5::parse_name($self->{kadm_princ});
+		my $server=Authen::Krb5::parse_name("kadmin/admin\@" . $self->{realm});
 		my $error;
 
 		$tmpfile = mktemp("/tmp/krb5_adm_$<_XXXXXXX");
 		$cc = Authen::Krb5::cc_resolve("FILE:$tmpfile");
 		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $cc) or die "Could not log on to Kerberos as administrator:" . error(error());
 		$self->{priv_kadm_cc} = $cc;
+		$self->{priv_kadm_ccname} = "FILE:$tmpfile";
 	}
 }
 
@@ -606,13 +624,20 @@ to generate a principal based on the user.
 
 =cut
 
-sub setpassword($$) {
+sub setpassword($$$) {
 	my $self = shift;
+	my $user = shift;
 	my $newpw = shift;
-	
-	if(!defined($newpw)) {
-		
+
+	$self->need_admin_krb();
+	if(!defined($newpw)||!defined($user)) {
+		die "Programmer error";
 	}
+	# This is rather unsafe. We really, really need some better way to do
+	# this, but the Perl library is currently not yet functional...
+	open KADMIN, "/usr/sbin/kadmin -r " . $self->{realm} . " -c " . $self->{priv_kadm_ccname} . " -q 'cpw $user\@" . $self->{realm} . " -pw $newpw'|";
+	while(<KADMIN>) { }
+	close KADMIN;
 }
 
 sub findHighestUid($) {
