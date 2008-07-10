@@ -333,10 +333,13 @@ or searching the LDAP directory is wanted.
 
 =cut
 
+# XXX probably want to use the admin krb stuff here, rather than just the
+# default ccache
 sub bind($) {
 	my $ldap;
 	my $sasl;
 	my $self = shift;
+
 	$ldap = Net::LDAP->new($self->{ldapuri}) or die $!;
 	$sasl = Authen::SASL->new(mech => "GSSAPI");
 	$ldap->bind($self->{binddn}, sasl => $sasl, version => 3);
@@ -527,6 +530,7 @@ with an appropriate error message.
 
 =cut
 
+# XXX update for new API
 sub creategroup($$\@\&\&\%) {
 	my $self = shift;
 	my $group = shift;
@@ -613,6 +617,30 @@ sub logout_admin($) {
 		return;
 	}
 	$self->{priv_kadm_cc}->destroy();
+}
+
+=pod
+
+=item makeadmin(USER, PASSWORD )
+
+This subroutine will create a user/admin principal, effectively making
+the specified user an administrator.
+
+The parameter USER should contain the username of the user to be made
+administrator, without the /admin suffix; the parameter PASSWORD should
+contain their administrator password. Please note that for kerberos, the
+'user@REALM' and 'user/admin@REALM' are completely unrelated.
+
+=cut
+
+sub makeadmin($$$) {
+	my $self = shift;
+	my $user = shift;
+	my $password = shift;
+
+	open KADMIN, "/usr/sbin/kadmin -r " . $self->{realm} . " -c " . $self->{priv_kadm_ccname} . " -q 'addprinc -randkey $user/admin\@" . $self->{realm} . "'|";
+	while(<KADMIN>) { }
+	close KADMIN;
 }
 
 =pod
