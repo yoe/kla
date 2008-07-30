@@ -530,7 +530,6 @@ with an appropriate error message.
 
 =cut
 
-# XXX update for new API
 sub creategroup($$\@\&\&\%) {
 	my $self = shift;
 	my $group = shift;
@@ -712,6 +711,18 @@ sub findHighestGid($) {
 			$self->{priv_mingid} = ($val > $self->{priv_mingid} ? $val : $self->{priv_mingid});
 		}
 	} while ($res->count());
+}
+
+sub addmembers($$\@) {
+	my $self = shift;
+	my $group = shift;
+	my $members = shift;
+	my $member;
+
+	$self->need_ldap();
+	foreach $member(@$members) {
+		$self->{priv_ldapobj}->modify("gid=$group, " . $self->{ldapgroupbase}, add => { "memberuid", $member });
+	}
 }
 
 =pod
