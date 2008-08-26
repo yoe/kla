@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+# vim: ai
+
 package Kla;
 
 use Net::LDAP;
@@ -593,6 +595,7 @@ sub login_admin($$) {
 
 		$tmpfile = mktemp("/tmp/krb5_adm_$<_XXXXXXX");
 		$cc = Authen::Krb5::cc_resolve("FILE:$tmpfile");
+		$cc->initialize($client);
 		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $cc) or die "Could not log on to Kerberos as administrator:" . Authen::Krb5::error(Authen::Krb5::error());
 		$self->{priv_kadm_cc} = $cc;
 		$self->{priv_kadm_ccname} = "FILE:$tmpfile";
@@ -662,7 +665,7 @@ sub setpassword($$$) {
 	}
 	# This is rather unsafe. We really, really need some better way to do
 	# this, but the Perl library is currently not yet functional...
-	open KADMIN, "/usr/sbin/kadmin -r " . $self->{realm} . " -c " . $self->{priv_kadm_ccname} . " -q 'cpw $user\@" . $self->{realm} . " -pw $newpw'|";
+	open KADMIN, "/usr/sbin/kadmin -r " . $self->{realm} . " -c " . $self->{priv_kadm_ccname} . " -q 'cpw -pw $newpw $user\@" . $self->{realm} . "'|";
 	while(<KADMIN>) { }
 	close KADMIN;
 }
