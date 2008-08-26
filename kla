@@ -182,13 +182,16 @@ if($action eq "adduser") {
 		die "Please specify the username whose password to change,\nor use kpasswd to change your own\n";
 	}
 	if(!defined($pw)) {
-		print "Please enter the new password:";
-		print "Please re-enter the same password, for verification:";
+		my $pw1;
 		my $mode = IO::Stty::stty(\*STDIN, '-g');
 		IO::Stty::stty(\*STDIN, '-echo');
+		print "Please enter the new password:";
+		$pw1=<>;
+		print "Please re-enter the same password, for verification:";
 		$pw=<>;
 		IO::Stty::stty(\*STDIN, $mode);
 		print "\n";
+		die "Sorry, the passwords were not the same" unless ($pw eq $pw1);
 		chomp $pw;
 	}
 	$kla->setpassword($user, $pw);
