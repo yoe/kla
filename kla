@@ -122,8 +122,7 @@ addmember: add (a) user(s) to a group.
 
 =back
 
-=head2 adduser
-=head2 addgroup
+=head2 adduser, addgroup
 
 These take one required argument -- the user or group to add. The other
 arguments are all optional; if they are not specified, and the default
