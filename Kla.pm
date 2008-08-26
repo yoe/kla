@@ -593,7 +593,7 @@ sub login_admin($$) {
 
 		$tmpfile = mktemp("/tmp/krb5_adm_$<_XXXXXXX");
 		$cc = Authen::Krb5::cc_resolve("FILE:$tmpfile");
-		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $cc) or die "Could not log on to Kerberos as administrator:" . error(error());
+		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $cc) or die "Could not log on to Kerberos as administrator:" . Authen::Krb5::error(Authen::Krb5::error());
 		$self->{priv_kadm_cc} = $cc;
 		$self->{priv_kadm_ccname} = "FILE:$tmpfile";
 	}
