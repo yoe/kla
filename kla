@@ -4,6 +4,8 @@ use Kla;
 use Getopt::Long;
 use Pod::Usage;
 use IO::Stty;
+use strict;
+use warnings;
 
 my $action;
 my $user;
@@ -13,7 +15,8 @@ my $help;
 my $firstname;
 my $lastname;
 my @accessto=();
-my @member=();
+my @members=();
+my $trustmode;
 my $kla = Kla->new;
 
 
@@ -46,7 +49,7 @@ sub login_admin() {
 	}
 }
 
-$result = GetOptions("action|a=s"	=> \$action,
+my $result = GetOptions("action|a=s"	=> \$action,
 		     "user|u=s"		=> \$user,
 		     "group|g=s"	=> \@groups,
 		     "password|p=s"	=> \$pw,
@@ -148,11 +151,13 @@ if(!defined($action)) {
 login_admin();
 
 if($action eq "adduser") {
-	my $pw;
 	my %vars;
 
 	if(!defined($user)) {
 		die "Need a username\n";
+	}
+	if(!defined($pw)) {
+		die "Need a password\n";
 	}
 	if(defined $firstname) {
 		$vars{firstname}=$firstname;
@@ -163,14 +168,15 @@ if($action eq "adduser") {
 	if(defined $trustmode) {
 		$vars{trustmode}=$trustmode;
 	}
-	if(defined $accessto) {
+	if($#accessto) {
 		$vars{accessto}=\@accessto;
 	}
 
 	$kla->bind();
 
 	$kla->createuser($user, \@groups, \&ask, \&err, \%vars) or die "Could not create user";
-	$kla->setpassword($password);
+
+	$kla->setpassword($user,$pw);
 } elsif($action eq "addgroup") {
 	my %hash;
 
@@ -208,7 +214,7 @@ if($action eq "adduser") {
 		die "Need exactly one group name";
 	}
 	$kla->bind();
-	$kla->delgroup($group[0]);
+	$kla->delgroup($groups[0]);
 } elsif($action eq "addmember") {
 	if(scalar(@members)==0) {
 		die "Need at least one member to add to the group";
@@ -217,7 +223,7 @@ if($action eq "adduser") {
 		die "Need exactly one group to add members to";
 	}
 	$kla->bind();
-	$kla->addmember($group[0], \@members);
+	$kla->addmember($groups[0], \@members);
 } elsif($action eq "makeadmin") {
 	if(!defined($user)) {
 		die "Please enter the username to give admin rights to";

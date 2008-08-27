@@ -602,7 +602,7 @@ sub needs_logon($) {
 	}
 	$cc = Authen::Krb5::cc_default();
 	$princname = $cc->get_principal();
-	$self->{priv_kadm_ccname} = Authen::Krb5::cc_default_name();
+	#$self->{priv_kadm_ccname} = Authen::Krb5::cc_default_name();
 	if(defined $princname && $princname =~ /\/admin\@/) {
 		return 0;
 	}
@@ -718,7 +718,7 @@ sub setpassword($$$) {
 
 	$self->need_admin_krb();
 	if(!defined($newpw)||!defined($user)) {
-		die "Programmer error";
+		die "Programmer error: we didn't get a password or a username";
 	}
 	# This is rather unsafe. We really, really need some better way to do
 	# this, but the Perl library is currently not yet functional...
@@ -790,6 +790,7 @@ sub deluser($$) {
 	my $user = shift;
 	my $ldap;
 	my $res;
+	my @command = ();
 
 	$self->need_ldap();
 	$self->need_admin_krb();
@@ -801,7 +802,8 @@ sub deluser($$) {
 	for my $entry($res->entries()) {
 		$ldap->delete($entry);
 	}
-	open2 \*KADMIN, \*KADMW, "/usr/sbin/kadmin", "-r", $self->{realm}, "-c", $self->{priv_kadm_ccname}, "-q", "'delprinc $user\@" . $self->{realm} . "'";
+	push @command, ( "/usr/sbin/kadmin", "-r", $self->{realm}, "-c", $self->{priv_kadm_ccname}, "-q", "'delprinc $user\\\@" . $self->{realm} . "'");
+	open KADMIN, @command;
 	while(<KADMIN>) {
 		if(/Are you sure you want to delete/) {
 			print KADMW "yes\n";
@@ -809,7 +811,7 @@ sub deluser($$) {
 	}
 	close KADMIN;
 	close KADMW;
-	open2 \*KADMIN, \*KADMW, "/usr/sbin/kadmin", "-r", $self->{realm}, "-c", $self->{priv_kadm_ccname}, "-q", "'delprinc $user/admin\@" . $self->{realm} . "'";
+	open2 \*KADMIN, \*KADMW, "/usr/sbin/kadmin", "-r", $self->{realm}, "-c", $self->{priv_kadm_ccname}, "-q", "'delprinc $user/admin\\\@" . $self->{realm} . "'";
 	while(<KADMIN>) {
 		if(/Are you sure you want to delete/) {
 			print KADMW "yes\n";
