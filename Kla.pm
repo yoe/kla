@@ -337,6 +337,7 @@ or searching the LDAP directory is wanted.
 
 # XXX probably want to use the admin krb stuff here, rather than just the
 # default ccache
+# Try using $ENV{KRB5CCNAME}, maybe that'll work.
 sub bind($) {
 	my $ldap;
 	my $sasl;
@@ -572,6 +573,10 @@ operations, see login().
 
 =cut
 
+# XXX Should really use the commented-out code; but `perldoc GSSAPI' is
+# less than helpful, and is required reading if we want to set a
+# specific credentials cache rather than use (overwrite) the default.
+
 sub login_admin($$) {
 	my $self = shift;
 	my $pw = shift;
@@ -579,27 +584,31 @@ sub login_admin($$) {
 	my $cc;
 	my $tmpfile;
 
-	if(!exists($self->{priv_krbctx})) {
-		$self->{ctx} = Authen::Krb5::init_context();
-	}
+	#if(!exists($self->{priv_krbctx})) {
+	#	$self->{ctx} = Authen::Krb5::init_context();
+	#}
 	if(!exists($self->{realm})) {
 		$self->{realm} = Authen::Krb5::get_default_realm();
 	}
 	if(!exists($self->{kadm_princ})) {
 		$self->{kadm_princ} = $ENV{USER} . "/admin\@" . $self->{realm};
 	}
-	if(!exists($self->{priv_kadm_cc})) {
+	#if(!exists($self->{priv_kadm_cc})) {
 		my $client=Authen::Krb5::parse_name($self->{kadm_princ});
 		my $server=Authen::Krb5::parse_name("kadmin/admin\@" . $self->{realm});
 		my $error;
 
-		$tmpfile = mktemp("/tmp/krb5_adm_$<_XXXXXXX");
-		$cc = Authen::Krb5::cc_resolve("FILE:$tmpfile");
-		$cc->initialize($client);
+	#	$tmpfile = mktemp("/tmp/krb5_adm_$<_XXXXXXX");
+	#	$cc = Authen::Krb5::cc_resolve("FILE:$tmpfile");
+	#	$cc = Authen::Krb5::cc_default();
+	#	$cc = Authen::Krb5::cc_resolve(Authen::Krb5::cc_default_name());
+		$cc = Authen::Krb5::cc_resolve("FILE:" . $ENV{KRB5CCNAME});
+	#	$cc->initialize($client);
 		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $cc) or die "Could not log on to Kerberos as administrator:" . Authen::Krb5::error(Authen::Krb5::error());
-		$self->{priv_kadm_cc} = $cc;
-		$self->{priv_kadm_ccname} = "FILE:$tmpfile";
-	}
+	#	$self->{priv_kadm_cc} = $cc;
+	#	$self->{priv_kadm_ccname} = "FILE:$tmpfile";
+	#	$ENV{KRB5CCNAME}=$self->{priv_kadm_ccname};
+	#}
 }
 
 =pod
@@ -615,7 +624,7 @@ it if you forget.
 sub logout_admin($) {
 	my $self = shift;
 
-	if(!exists($self->{priv_kadm_cc})) {
+	if(!defined($self->{priv_kadm_cc})) {
 		return;
 	}
 	$self->{priv_kadm_cc}->destroy();
