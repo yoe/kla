@@ -453,9 +453,22 @@ sub need_ldap($) {
 
 sub need_admin_krb($) {
 	my $self = shift;
+	my $found=0;
 
-	if(!exists($self->{priv_kadm_cc})) {
-		die "Programmer error: need to logon to Kerberos as admin first";
+	$self->needs_logon();
+	#if(!exists($self->{priv_kadm_cc})) {
+		#die "Programmer error: need to logon to Kerberos as admin first";
+	#}
+	open KLIST, "klist |";
+	while(<KLIST>) {
+		if(/Default principal: .*\/admin/) {
+			$found=1;
+			last;
+		}
+	}
+	close KLIST;
+	if(!$found) {
+		die "You need to log on as administrator! Please run 'kinit -p " . $ENV{USER} . "/admin\n";
 	}
 }
 
@@ -568,8 +581,8 @@ sub creategroup($$\@\&\&\%) {
 
 =item needs_logon()
 
-returns true if we need to log on in order to be able to do operations
-that require administrator privileges
+returns TRUE if we need to log on in order to be able to do operations
+that require administrator privileges.
 
 =cut
 
@@ -585,7 +598,7 @@ sub needs_logon($) {
 		$self->{realm} = Authen::Krb5::get_default_realm();
 	}
 	if(!exists($self->{kadm_princ})) {
-		$self->{kadm_princ} = $ENV{USER} . "/admin\@" . $self->{realm}
+		$self->{kadm_princ} = $ENV{USER} . "/admin\@" . $self->{realm};
 	}
 	$cc = Authen::Krb5::cc_default();
 	$princname = $cc->get_principal();
@@ -595,6 +608,9 @@ sub needs_logon($) {
 	}
 	return 1;
 }
+
+=pod
+
 =item login_admin(PASSWORD)
 
 Log in to the Kerberos server as an admin user (username/admin@REALM).
@@ -617,7 +633,7 @@ sub login_admin($$) {
 	my $tname;
 
 	if(!exists($self->{priv_krbctx})) {
-		$self->{ctx} = Authen::Krb5::init_context();
+		$self->{priv_krbctx} = Authen::Krb5::init_context();
 	}
 	if(!exists($self->{realm})) {
 		$self->{realm} = Authen::Krb5::get_default_realm();
@@ -778,7 +794,8 @@ sub deluser($$) {
 	$self->need_ldap();
 	$self->need_admin_krb();
 	$ldap = $self->{priv_ldapobj};
-	$res = $ldap->search(base => $self->{userbase}, filter => "(&(objectClass=posixAccount)(uid=$user))");
+	$res = $ldap->search(base => $self->{userbase},
+			     filter => "(&(objectClass=posixAccount)(uid=$user))");
 	$res->code && $res->error;
 	die "Could not remove user: user does not exist\n" unless $res->count();
 	for my $entry($res->entries()) {

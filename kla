@@ -31,10 +31,10 @@ sub err($) {
 }
 
 sub login_admin() {
-	my $pass;
+	my $pass=undef;
 	my $mode;
 
-	if($kla->needs_logon) {
+	if($kla->needs_logon()) {
 		print 'Please enter your administrator password: ';
 		$mode = IO::Stty::stty(\*STDIN, '-g');
 		IO::Stty::stty(\*STDIN, '-echo');
