@@ -187,7 +187,7 @@ if($action eq "adduser") {
 		IO::Stty::stty(\*STDIN, '-echo');
 		print "Please enter the new password:";
 		$pw1=<>;
-		print "Please re-enter the same password, for verification:";
+		print "\nPlease re-enter the same password, for verification:";
 		$pw=<>;
 		IO::Stty::stty(\*STDIN, $mode);
 		print "\n";
