@@ -452,9 +452,22 @@ sub need_ldap($) {
 
 sub need_admin_krb($) {
 	my $self = shift;
+	my $found=0;
 
-	if(!exists($self->{priv_kadm_cc})) {
-		die "Programmer error: need to logon to Kerberos as admin first";
+	$self->needs_logon();
+	#if(!exists($self->{priv_kadm_cc})) {
+		#die "Programmer error: need to logon to Kerberos as admin first";
+	#}
+	open KLIST, "klist |";
+	while(<KLIST>) {
+		if(/Default principal: .*\/admin/) {
+			$found=1;
+			last;
+		}
+	}
+	close KLIST;
+	if(!$found) {
+		die "You need to log on as administrator! Please run 'kinit -p " . $ENV{USER} . "/admin\n";
 	}
 }
 
@@ -565,6 +578,38 @@ sub creategroup($$\@\&\&\%) {
 
 =pod
 
+=item needs_logon()
+
+returns TRUE if we need to log on in order to be able to do operations
+that require administrator privileges.
+
+=cut
+
+sub needs_logon($) {
+	my $self = shift;
+	my $cc;
+	my $princname;
+
+	if(!exists($self->{priv_krbctx})) {
+		$self->{priv_krbctx} = Authen::Krb5::init_context();
+	}
+	if(!exists($self->{realm})) {
+		$self->{realm} = Authen::Krb5::get_default_realm();
+	}
+	if(!exists($self->{kadm_princ})) {
+		$self->{kadm_princ} = $ENV{USER} . "/admin\@" . $self->{realm};
+	}
+	$cc = Authen::Krb5::cc_default();
+	$princname = $cc->get_principal();
+	$self->{priv_kadm_ccname} = Authen::Krb5::cc_default_name();
+	if(defined $princname && $princname =~ /\/admin\@/) {
+		return 0;
+	}
+	return 1;
+}
+
+=pod
+
 =item login_admin(PASSWORD)
 
 Log in to the Kerberos server as an admin user (username/admin@REALM).
@@ -580,35 +625,32 @@ operations, see login().
 sub login_admin($$) {
 	my $self = shift;
 	my $pw = shift;
-	my $ctx;
 	my $cc;
-	my $tmpfile;
 
-	#if(!exists($self->{priv_krbctx})) {
-	#	$self->{ctx} = Authen::Krb5::init_context();
-	#}
+	if(!exists($self->{priv_krbctx})) {
+		$self->{priv_krbctx} = Authen::Krb5::init_context();
+	}
 	if(!exists($self->{realm})) {
 		$self->{realm} = Authen::Krb5::get_default_realm();
 	}
 	if(!exists($self->{kadm_princ})) {
 		$self->{kadm_princ} = $ENV{USER} . "/admin\@" . $self->{realm};
 	}
-	#if(!exists($self->{priv_kadm_cc})) {
+	if(!exists($self->{priv_kadm_cc})) {
 		my $client=Authen::Krb5::parse_name($self->{kadm_princ});
 		my $server=Authen::Krb5::parse_name("kadmin/admin\@" . $self->{realm});
 		my $error;
 
 	#	$tmpfile = mktemp("/tmp/krb5_adm_$<_XXXXXXX");
 	#	$cc = Authen::Krb5::cc_resolve("FILE:$tmpfile");
-	#	$cc = Authen::Krb5::cc_default();
-	#	$cc = Authen::Krb5::cc_resolve(Authen::Krb5::cc_default_name());
-		$cc = Authen::Krb5::cc_resolve("FILE:" . $ENV{KRB5CCNAME});
-	#	$cc->initialize($client);
+		$cc = Authen::Krb5::cc_default();
+		$cc->initialize($client);
 		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $cc) or die "Could not log on to Kerberos as administrator:" . Authen::Krb5::error(Authen::Krb5::error());
-	#	$self->{priv_kadm_cc} = $cc;
+		$self->{priv_kadm_cc} = $cc;
 	#	$self->{priv_kadm_ccname} = "FILE:$tmpfile";
+		$self->{priv_kadm_ccname} = Authen::Krb5::cc_default_name();
 	#	$ENV{KRB5CCNAME}=$self->{priv_kadm_ccname};
-	#}
+	}
 }
 
 =pod
@@ -735,6 +777,30 @@ sub addmembers($$\@) {
 	foreach $member(@$members) {
 		$self->{priv_ldapobj}->modify("gid=$group, " . $self->{ldapgroupbase}, add => { "memberuid", $member });
 	}
+}
+
+sub deluser($$) {
+	my $self = shift;
+	my $user = shift;
+	my $ldap;
+	my $res;
+
+	$self->need_ldap();
+	$self->need_admin_krb();
+	$ldap = $self->{priv_ldapobj};
+	$res = $ldap->search(base => $self->{userbase},
+			     filter => "(&(objectClass=posixAccount)(uid=$user))");
+	$res->code && $res->error;
+	die "Could not remove user: user does not exist\n" unless $res->count();
+	for my $entry($res->entries()) {
+		$ldap->delete($entry);
+	}
+	open KADMIN, "/usr/sbin/kadmin -r " . $self->{realm} . " -c " . $self->{priv_kadm_ccname} . " -q 'delprinc $user\@" . $self->{realm} . "'|";
+	while(<KADMIN>) { }
+	close KADMIN;
+	open KADMIN, "/usr/sbin/kadmin -r " . $self->{realm} . " -c " . $self->{priv_kadm_ccname} . " -q 'delprinc $user/admin\@" . $self->{realm} . "'|";
+	while(<KADMIN>) { }
+	close KADMIN;
 }
 
 =pod
