@@ -34,14 +34,16 @@ sub login_admin() {
 	my $pass;
 	my $mode;
 
-	print 'Please enter your administrator password: ';
-	$mode = IO::Stty::stty(\*STDIN, '-g');
-	IO::Stty::stty(\*STDIN, '-echo');
-	$pass = <>;
-	IO::Stty::stty(\*STDIN, $mode);
-	print "\n";
-	chomp $pass;
-	$kla->login_admin($pass);
+	if($kla->needs_logon) {
+		print 'Please enter your administrator password: ';
+		$mode = IO::Stty::stty(\*STDIN, '-g');
+		IO::Stty::stty(\*STDIN, '-echo');
+		$pass = <>;
+		IO::Stty::stty(\*STDIN, $mode);
+		print "\n";
+		chomp $pass;
+		$kla->login_admin($pass);
+	}
 }
 
 $result = GetOptions("action|a=s"	=> \$action,

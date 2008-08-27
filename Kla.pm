@@ -8,6 +8,7 @@ use Net::LDAP;
 use Authen::SASL qw(Perl);
 use Authen::Krb5;
 use File::Temp qw(:mktemp);
+use IPC::Open2;
 use strict;
 use warnings;
 
@@ -565,6 +566,35 @@ sub creategroup($$\@\&\&\%) {
 
 =pod
 
+=item needs_logon()
+
+returns true if we need to log on in order to be able to do operations
+that require administrator privileges
+
+=cut
+
+sub needs_logon($) {
+	my $self = shift;
+	my $cc;
+	my $princname;
+
+	if(!exists($self->{priv_krbctx})) {
+		$self->{priv_krbctx} = Authen::Krb5::init_context();
+	}
+	if(!exists($self->{realm})) {
+		$self->{realm} = Authen::Krb5::get_default_realm();
+	}
+	if(!exists($self->{kadm_princ})) {
+		$self->{kadm_princ} = $ENV{USER} . "/admin\@" . $self->{realm}
+	}
+	$cc = Authen::Krb5::cc_default();
+	$princname = $cc->get_principal();
+	$self->{priv_kadm_ccname} = Authen::Krb5::cc_default_name();
+	if(defined $princname && $princname =~ /\/admin\@/) {
+		return 0;
+	}
+	return 1;
+}
 =item login_admin(PASSWORD)
 
 Log in to the Kerberos server as an admin user (username/admin@REALM).
@@ -581,34 +611,36 @@ sub login_admin($$) {
 	my $self = shift;
 	my $pw = shift;
 	my $ctx;
-	my $cc;
+	my $cc_ldap;
+	my $cc_krb;
 	my $tmpfile;
+	my $tname;
 
-	#if(!exists($self->{priv_krbctx})) {
-	#	$self->{ctx} = Authen::Krb5::init_context();
-	#}
+	if(!exists($self->{priv_krbctx})) {
+		$self->{ctx} = Authen::Krb5::init_context();
+	}
 	if(!exists($self->{realm})) {
 		$self->{realm} = Authen::Krb5::get_default_realm();
 	}
 	if(!exists($self->{kadm_princ})) {
 		$self->{kadm_princ} = $ENV{USER} . "/admin\@" . $self->{realm};
 	}
-	#if(!exists($self->{priv_kadm_cc})) {
+	if(!exists($self->{priv_kadm_cc})) {
+		# XXX This is ugly, but the API is horribly broken.
 		my $client=Authen::Krb5::parse_name($self->{kadm_princ});
 		my $server=Authen::Krb5::parse_name("kadmin/admin\@" . $self->{realm});
+		my $tgt = Authen::Krb5::parse_name("krbtgt/" . $self->{realm} . '@' . $self->{realm});
 		my $error;
 
-	#	$tmpfile = mktemp("/tmp/krb5_adm_$<_XXXXXXX");
-	#	$cc = Authen::Krb5::cc_resolve("FILE:$tmpfile");
-	#	$cc = Authen::Krb5::cc_default();
-	#	$cc = Authen::Krb5::cc_resolve(Authen::Krb5::cc_default_name());
-		$cc = Authen::Krb5::cc_resolve("FILE:" . $ENV{KRB5CCNAME});
-	#	$cc->initialize($client);
-		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $cc) or die "Could not log on to Kerberos as administrator:" . Authen::Krb5::error(Authen::Krb5::error());
-	#	$self->{priv_kadm_cc} = $cc;
-	#	$self->{priv_kadm_ccname} = "FILE:$tmpfile";
-	#	$ENV{KRB5CCNAME}=$self->{priv_kadm_ccname};
-	#}
+		$tmpfile = mktemp("/tmp/krb5_adm_$<_XXXXXXX");
+		$cc_krb = Authen::Krb5::cc_resolve("FILE:$tmpfile");
+		$cc_krb->initialize($client);
+		$cc_ldap = Authen::Krb5::cc_default();
+		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $cc_krb) or die "Could not log on to Kerberos as administrator:" . Authen::Krb5::error(Authen::Krb5::error());
+		Authen::Krb5::get_in_tkt_with_password($client, $tgt, $pw, $cc_ldap) or die "Could not log on to Kerberos as administrator:" . Authen::Krb5::error(Authen::Krb5::error());
+		$self->{priv_kadm_cc} = $cc_krb;
+		$self->{priv_kadm_ccname} = "FILE:$tmpfile";
+	}
 }
 
 =pod
@@ -735,6 +767,39 @@ sub addmembers($$\@) {
 	foreach $member(@$members) {
 		$self->{priv_ldapobj}->modify("gid=$group, " . $self->{ldapgroupbase}, add => { "memberuid", $member });
 	}
+}
+
+sub deluser($$) {
+	my $self = shift;
+	my $user = shift;
+	my $ldap;
+	my $res;
+
+	$self->need_ldap();
+	$self->need_admin_krb();
+	$ldap = $self->{priv_ldapobj};
+	$res = $ldap->search(base => $self->{userbase}, filter => "(&(objectClass=posixAccount)(uid=$user))");
+	$res->code && $res->error;
+	die "Could not remove user: user does not exist\n" unless $res->count();
+	for my $entry($res->entries()) {
+		$ldap->delete($entry);
+	}
+	open2 \*KADMIN, \*KADMW, "/usr/sbin/kadmin", "-r", $self->{realm}, "-c", $self->{priv_kadm_ccname}, "-q", "'delprinc $user\@" . $self->{realm} . "'";
+	while(<KADMIN>) {
+		if(/Are you sure you want to delete/) {
+			print KADMW "yes\n";
+		}
+	}
+	close KADMIN;
+	close KADMW;
+	open2 \*KADMIN, \*KADMW, "/usr/sbin/kadmin", "-r", $self->{realm}, "-c", $self->{priv_kadm_ccname}, "-q", "'delprinc $user/admin\@" . $self->{realm} . "'";
+	while(<KADMIN>) {
+		if(/Are you sure you want to delete/) {
+			print KADMW "yes\n";
+		}
+	}
+	close KADMIN;
+	close KADMW;
 }
 
 =pod
