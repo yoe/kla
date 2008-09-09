@@ -427,6 +427,10 @@ sub add_elem($$\&\&\%) {
 			}
 			$attrs{$elem[0]}=\@attrvals if scalar(@attrvals);
 			$$vals{$elem[0]}=$attrval if scalar($attrval);
+		} else {
+			# This may be incorrect at times, but then it's going
+			# to be overwritten in a moment, anyway...
+			$attrs{$elem[0]}=$$vals{$elem[0]};
 		}
 	}
 	$$vals{realm}=$self->{realm};
@@ -802,6 +806,24 @@ sub addmembers($$\@) {
 	$self->need_ldap();
 	foreach $member(@$members) {
 		$self->{priv_ldapobj}->modify("gid=$group, " . $self->{ldapgroupbase}, add => { "memberuid", $member });
+	}
+}
+
+sub delgroup($$) {
+	my $self = shift;
+	my $group = shift;
+	my $ldap;
+	my $res;
+
+	$self->need_ldap();
+	$self->need_admin_krb();
+	$ldap = $self->{priv_ldapobj};
+	$res = $ldap->search(base => $self->{ldapgroupbase},
+			     filter => "(&(objectClass=posixGroup)(cn=$group))");
+	$res->code && $res->error;
+	die "Could not remove group: group does not exist\n" unless $res->count();
+	for my $entry($res->entries()) {
+		$ldap->delete($entry);
 	}
 }
 

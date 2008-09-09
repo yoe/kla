@@ -168,7 +168,7 @@ if($action eq "adduser") {
 	if(defined $trustmode) {
 		$vars{trustmode}=$trustmode;
 	}
-	if($#accessto) {
+	if($#accessto > 0) {
 		$vars{accessto}=\@accessto;
 	}
 
@@ -196,6 +196,9 @@ if($action eq "adduser") {
 		die "Need exactly one group when adding groups";
 	}
 	$kla->bind();
+	if($#members > 0) {
+		$hash{memberuid}=\@members;
+	}
 	$kla->creategroup($groups[0], \@members, \&ask, \&err, \%hash);
 } elsif($action eq "password") {
 	if(!defined $user) {
@@ -235,7 +238,7 @@ if($action eq "adduser") {
 		die "Need exactly one group to add members to";
 	}
 	$kla->bind();
-	$kla->addmember($groups[0], \@members);
+	$kla->addmembers($groups[0], \@members);
 } elsif($action eq "makeadmin") {
 	if(!defined($user)) {
 		die "Please enter the username to give admin rights to";
