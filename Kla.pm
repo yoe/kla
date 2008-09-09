@@ -801,10 +801,12 @@ sub addmembers($$\@) {
 	my $group = shift;
 	my $members = shift;
 	my $member;
+	my $res;
 
 	$self->need_ldap();
 	foreach $member(@$members) {
-		$self->{priv_ldapobj}->modify("gid=$group, " . $self->{ldapgroupbase}, add => { "memberuid", $member });
+		$res = $self->{priv_ldapobj}->modify("cn=$group, " . $self->{ldapgroupbase}, add => { "memberuid", $member });
+		$res->code && die $res->error
 	}
 }
 
