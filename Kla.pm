@@ -701,6 +701,7 @@ sub makeadmin($$$) {
 	my $user = shift;
 	my $password = shift;
 
+	$self->need_admin_krb();
 	open KADMIN, "/usr/sbin/kadmin -r " . $self->{realm} . " -c " . $self->{priv_kadm_ccname} . " -q 'addprinc -randkey $user/admin\@" . $self->{realm} . "'|";
 	while(<KADMIN>) { }
 	close KADMIN;

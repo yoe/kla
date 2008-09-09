@@ -230,6 +230,20 @@ if($action eq "adduser") {
 	}
 	$kla->bind();
 	$kla->makeadmin($user);
+	if(!defined($pw)) {
+		my $pw1;
+		my $mode = IO::Stty::stty(\*STDIN, '-g');
+		IO::Stty::stty(\*STDIN, '-echo');
+		print "Please enter the user's admin password:";
+		$pw1=<>;
+		print "\nPlease re-enter the same password, for verification:";
+		$pw=<>;
+		IO::Stty::stty(\*STDIN, $mode);
+		print "\n";
+		die "Sorry, the passwords were not the same" unless ($pw eq $pw1);
+		chomp $pw;
+	}
+	$kla->setpassword("$user/admin", $pw);
 } else {
 	print STDERR "Invalid action";
 	pod2usage(1);
