@@ -7,7 +7,7 @@ package Kla;
 use Net::LDAP;
 use Authen::SASL qw(Perl);
 use Authen::Krb5;
-use File::Temp qw(:mktemp);
+use File::Temp qw(tempfile);
 use IPC::Open2;
 use strict;
 use warnings;
@@ -459,7 +459,7 @@ sub need_admin_krb($) {
 	#if(!exists($self->{priv_kadm_cc})) {
 		#die "Programmer error: need to logon to Kerberos as admin first";
 	#}
-	open KLIST, "klist |";
+	open KLIST, "klist -c " . $self->{priv_kadm_ccname} . "|";
 	while(<KLIST>) {
 		if(/Default principal: .*\/admin/) {
 			$found=1;
@@ -648,7 +648,7 @@ sub login_admin($$) {
 		my $tgt = Authen::Krb5::parse_name("krbtgt/" . $self->{realm} . '@' . $self->{realm});
 		my $error;
 
-		$tmpfile = mktemp("/tmp/krb5_adm_$<_XXXXXXX");
+		(undef, $tmpfile) = tempfile("/tmp/krb5_adm_$<_XXXXXXX", UNLINK => 1);
 		$cc_krb = Authen::Krb5::cc_resolve("FILE:$tmpfile");
 		$cc_krb->initialize($client);
 		$cc_ldap = Authen::Krb5::cc_default();
@@ -671,11 +671,15 @@ it if you forget.
 
 sub logout_admin($) {
 	my $self = shift;
+	my $fname;
 
 	if(!defined($self->{priv_kadm_cc})) {
 		return;
 	}
+	$fname = $self->{priv_kadm_ccname};
+	$fname =~ s/FILE://;
 	$self->{priv_kadm_cc}->destroy();
+	unlink($fname);
 }
 
 =pod
