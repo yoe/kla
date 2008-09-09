@@ -1,0 +1,24 @@
+Source: kla
+Section: admin
+Priority: extra
+Maintainer: Wouter Verhelst <wouter@nixsys.be>
+Build-Depends: debhelper
+Standards-Version: 3.8.0
+
+Package: kla
+Architecture: all
+Depends: libnet-ldap-perl, libgssapi-perl, libauthen-sasl-perl, libsasl2-modules-gssapi-mit, krb5-user, ldap-utils
+Description: Kerberos/LDAP Admin
+ Kla is a simple tool and perl module to manage users and groups in LDAP
+ and Kerberos.
+ .
+ It features extensibility through a configuration file, allowing one to
+ easily add custom object classes to one's LDAP users that the author of
+ Kla didn't think about.
+ .
+ Kla makes a few assumptions about the setup, however:
+  - To create a user in Kerberos or LDAP, it is assumed that one must
+    have a Kerberos principal 'user/admin@REALM', similar to the default
+    setup for MIT Kerberos
+  - Currently, it only works with MIT kerberos, not with Heimdal or
+    anything else.

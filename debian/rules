@@ -1,0 +1,48 @@
+#!/usr/bin/make -f
+
+build:
+	perl Makefile.PL INSTALLDIRS=vendor
+	make
+build-arch:
+build-indep:
+
+install:
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -rf debian/kla
+	[ ! -f Makefile ] || make distclean
+	dh_clean
+
+install:
+	dh_testdir
+	dh_testroot
+	dh_installdirs
+	
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/kla
+	# I need to figure out how ExtUtils::MakeMaker works in somewhat more
+	# detail. For now, however...
+	cp -a kla $(CURDIR)/debian/kla/usr/bin/
+	cp -a kla.cfg.example $(CURDIR)/debian/kla/usr/share/doc/kla/examples/
+	pod2man kla > $(CURDIR)/debian/kla/usr/share/man/man1/kla.1
+	dh_installman
+
+binary: binary-arch binary-indep
+
+binary-indep: build install
+	dh_testdir
+	dh_testroot
+	
+	dh_installman -i
+	dh_installchangelogs -i
+	dh_installdocs -i
+	dh_installman -i
+	dh_compress -i
+	dh_fixperms -i
+	dh_installdeb -i
+	dh_gencontrol -i
+	dh_md5sums -i
+	dh_builddeb -i
+
+binary-arch:
