@@ -344,7 +344,6 @@ sub bind($) {
 	my $sasl;
 	my $self = shift;
 
-	$self->need_admin_krb();
 	$ldap = Net::LDAP->new($self->{ldapuri}) or die $!;
 	$sasl = Authen::SASL->new(mech => "GSSAPI") or die $!;
 	$ldap->bind($self->{binddn}, sasl => $sasl, version => 3) or die $!;
@@ -853,6 +852,27 @@ sub deluser($$) {
 	}
 	close KADMIN;
 	close KADMW;
+}
+
+sub list($$) {
+	my $self = shift;
+	my $which = shift;
+	my $ldap = $self->{priv_ldapobj};
+	my $entry;
+	my $attr;
+	my $res;
+
+	$res = $ldap->search(base => $self->{"ldap${which}base"},
+			     scope => "sub",
+			     filter => "(objectClass=*)",
+			     attrs => [ 'uidNumber', 'gidNumber', 'cn', 'uid', 'memberUid', 'trustModel', 'accessTo' ]);
+	$res->code && die $res->error;
+	foreach $entry($res->entries) {
+		foreach $attr($entry->attributes) {
+			print "$attr: " . (join ", ", $entry->get_value($attr)) . "\n";
+		}
+		print "\n";
+	}
 }
 
 =pod

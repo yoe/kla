@@ -148,6 +148,12 @@ if(!defined($action)) {
 	pod2usage(1);
 }
 
+if ($action =~ /^list(.*)$/) {
+	$kla->bind();
+	$kla->list($1);
+	exit(0);
+}
+
 login_admin();
 
 if($action eq "adduser") {
