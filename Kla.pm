@@ -344,6 +344,7 @@ sub bind($) {
 	my $sasl;
 	my $self = shift;
 
+	$self->need_admin_krb();
 	$ldap = Net::LDAP->new($self->{ldapuri}) or die $!;
 	$sasl = Authen::SASL->new(mech => "GSSAPI") or die $!;
 	$ldap->bind($self->{binddn}, sasl => $sasl, version => 3) or die $!;
@@ -430,7 +431,7 @@ sub add_elem($$\&\&\%) {
 	}
 	$$vals{realm}=$self->{realm};
 	foreach $attr(split /\|/,$self->{"${elemname}vals"}) {
-		my @attr = split(/:/, $attr);
+		my @attr = split(/:/, $attr, 2);
 		$attrs{$attr[0]} = apply_string_template($attr[1], %$vals);
 	}
 	foreach (split /:/, $self->{"${elemname}classes"}) {
@@ -456,10 +457,7 @@ sub need_admin_krb($) {
 	my $found=0;
 
 	$self->needs_logon();
-	#if(!exists($self->{priv_kadm_cc})) {
-		#die "Programmer error: need to logon to Kerberos as admin first";
-	#}
-	open KLIST, "klist -5 -c " . $self->{priv_kadm_ccname} . "|";
+	open KLIST, "klist -5 |";
 	while(<KLIST>) {
 		if(/Default principal: .*\/admin/) {
 			$found=1;
@@ -467,8 +465,8 @@ sub need_admin_krb($) {
 		}
 	}
 	close KLIST;
-	if(!$found) {
-		die "You need to log on as administrator! Please run 'kinit -p " . $ENV{USER} . "/admin\n";
+	if(!exists($self->{priv_kadm_cc}) || ! $found) {
+		die "Programmer error: need to logon to Kerberos as admin first";
 	}
 }
 
@@ -502,7 +500,7 @@ sub createuser($$\@\&\&\%) {
 	my $vars = shift;
 
 	$self->need_ldap();
-	$res = $ldap->search(base => $self->{userbase},
+	$res = $ldap->search(base => $self->{ldapuserbase},
 			     filter => "(&(objectClass=posixAccount)(uid=$user))");
 	$res->code && die $res->error;
 	die "Could not create user: user already exists\n" if $res->count();
@@ -551,30 +549,27 @@ sub creategroup($$\@\&\&\%) {
 	my $self = shift;
 	my $group = shift;
 	my $members = shift;
+	my $ask = shift;
+	my $err = shift;
 	my $vals = shift;
 	my $ldap;
 	my $res;
 	my $member;
-	my $template;
 
-	die "Not bound yet!" unless exists($self->{priv_ldapobj});
-	$ldap = $self->{priv_ldabobj};
+	$self->need_ldap();
+	$ldap = $self->{priv_ldapobj};
 	$res = $ldap->search(base => $self->{ldapgroupbase},
-			     filter => "(&(objectClass=posixGroup)(cn=$group)",
+			     filter => "(&(objectClass=posixGroup)(cn=$group))",
 			     scope => "sub",
 			     attrs => [ 'gidNumber' ]);
-	$res->code && die $res->error;
-	if($res->count() > 0) {
+	if($res->count()) {
 		die "Group already exists, with gidNumber " . $res->pop_entry()->get_value("gidNumber") . "\n";
 	}
 	$self->findHighestGid();
 	$vals->{gidnumber} = $self->{priv_mingid} + 1;
-	$template = $self->{newgroup_template};
-	foreach $member(@$members) {
-		$template .= "\nmemberUid = $member";
-	}
-	$self->add_entry($template, $vals);
-	$self->addmembers($group, $members);
+	$vals->{group}=$group;
+	$vals->{member}=$members;
+	$self->add_elem("group", $ask, $err, $vals);
 }
 
 =pod
@@ -643,6 +638,8 @@ sub login_admin($$) {
 	}
 	if(!exists($self->{priv_kadm_cc})) {
 		# XXX This is ugly, but the API is horribly broken.
+		# We should preferably not have to overwrite the
+		# existing credentials cache...
 		my $client=Authen::Krb5::parse_name($self->{kadm_princ});
 		my $server=Authen::Krb5::parse_name("kadmin/admin\@" . $self->{realm});
 		my $tgt = Authen::Krb5::parse_name("krbtgt/" . $self->{realm} . '@' . $self->{realm});
@@ -655,7 +652,7 @@ sub login_admin($$) {
 		$cc_krb->initialize($client);
 		$cc_ldap = Authen::Krb5::cc_default();
 		open KLIST, "klist -5 |";
-		$regex="(for client |Default principal: )" . $self->{kadm_princ};
+		$regex="Default principal: " . $self->{kadm_princ};
 		while(<KLIST>) {
 			if(/$regex/) {
 				$found=1;
@@ -664,6 +661,7 @@ sub login_admin($$) {
 		}
 		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $cc_krb) or die "Could not log on to Kerberos as administrator:" . Authen::Krb5::error(Authen::Krb5::error());
 		if(!$found) {
+			$cc_ldap->initialize($client);
 			Authen::Krb5::get_in_tkt_with_password($client, $tgt, $pw, $cc_ldap) or die "Could not log on to Kerberos as administrator:" . Authen::Krb5::error(Authen::Krb5::error());
 		}
 		$self->{priv_kadm_cc} = $cc_krb;
@@ -754,7 +752,7 @@ sub findHighestUid($) {
 	$ldap = $self->{priv_ldapobj};
 	$self->{priv_minuid} = $self->{minuid} unless defined($self->{priv_minuid});
 	do {
-		$res=$ldap->search(base => $self->{userbase},
+		$res=$ldap->search(base => $self->{ldapuserbase},
 				   filter => "(objectClass=posixAccount)",
 				   scope => 'sub',
 				   attrs => [ 'uidNumber' ]);
@@ -763,7 +761,7 @@ sub findHighestUid($) {
 			my $val = $entry->get_value("uidNumber");
 			$self->{priv_minuid} = ($val > $self->{priv_minuid} ? $val : $self->{priv_minuid});
 		}
-		$res=$ldap->search(base => $self->{userbase},
+		$res=$ldap->search(base => $self->{ldapuserbase},
 				   filter => "(&(objectClass=posixAccount)(uidNumber=" . ($self->{priv_minuid} + 1) . "))",
 				   scope => 'sub',
 				   attrs => [ 'uidNumber' ]);
@@ -783,11 +781,15 @@ sub findHighestGid($) {
 				   filter => "(objectClass=posixGroup)",
 				   scope => 'sub',
 				   attrs => [ 'gidNumber' ]);
-		$res->code && die->$res->error;
+		$res->code && die $res->error;
 		foreach $entry ($res->entries) {
 			my $val = $entry->get_value("gidNumber");
 			$self->{priv_mingid} = ($val > $self->{priv_mingid} ? $val : $self->{priv_mingid});
 		}
+		$res=$ldap->search(base => $self->{ldapgroupbase},
+				   filter => "(&(objectClass=posixGroup)(uidNumber=" . ($self->{priv_mingid} + 1) . "))",
+				   scope => 'sub',
+				   attrs => [ 'uidnumber' ]);
 	} while ($res->count());
 }
 
@@ -812,7 +814,7 @@ sub deluser($$) {
 	$self->need_ldap();
 	$self->need_admin_krb();
 	$ldap = $self->{priv_ldapobj};
-	$res = $ldap->search(base => $self->{userbase},
+	$res = $ldap->search(base => $self->{ldapuserbase},
 			     filter => "(&(objectClass=posixAccount)(uid=$user))");
 	$res->code && $res->error;
 	die "Could not remove user: user does not exist\n" unless $res->count();
