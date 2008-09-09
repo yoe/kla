@@ -345,8 +345,8 @@ sub bind($) {
 	my $self = shift;
 
 	$ldap = Net::LDAP->new($self->{ldapuri}) or die $!;
-	$sasl = Authen::SASL->new(mech => "GSSAPI");
-	$ldap->bind($self->{binddn}, sasl => $sasl, version => 3);
+	$sasl = Authen::SASL->new(mech => "GSSAPI") or die $!;
+	$ldap->bind($self->{binddn}, sasl => $sasl, version => 3) or die $!;
 	$self->{priv_ldapobj} = $ldap;
 }
 
@@ -459,7 +459,7 @@ sub need_admin_krb($) {
 	#if(!exists($self->{priv_kadm_cc})) {
 		#die "Programmer error: need to logon to Kerberos as admin first";
 	#}
-	open KLIST, "klist -c " . $self->{priv_kadm_ccname} . "|";
+	open KLIST, "klist -5 -c " . $self->{priv_kadm_ccname} . "|";
 	while(<KLIST>) {
 		if(/Default principal: .*\/admin/) {
 			$found=1;
@@ -647,13 +647,25 @@ sub login_admin($$) {
 		my $server=Authen::Krb5::parse_name("kadmin/admin\@" . $self->{realm});
 		my $tgt = Authen::Krb5::parse_name("krbtgt/" . $self->{realm} . '@' . $self->{realm});
 		my $error;
+		my $found=0;
+		my $regex;
 
 		(undef, $tmpfile) = tempfile("/tmp/krb5_adm_$<_XXXXXXX", UNLINK => 1);
 		$cc_krb = Authen::Krb5::cc_resolve("FILE:$tmpfile");
 		$cc_krb->initialize($client);
 		$cc_ldap = Authen::Krb5::cc_default();
+		open KLIST, "klist -5 |";
+		$regex="(for client |Default principal: )" . $self->{kadm_princ};
+		while(<KLIST>) {
+			if(/$regex/) {
+				$found=1;
+				last;
+			}
+		}
 		Authen::Krb5::get_in_tkt_with_password($client, $server, $pw, $cc_krb) or die "Could not log on to Kerberos as administrator:" . Authen::Krb5::error(Authen::Krb5::error());
-		Authen::Krb5::get_in_tkt_with_password($client, $tgt, $pw, $cc_ldap) or die "Could not log on to Kerberos as administrator:" . Authen::Krb5::error(Authen::Krb5::error());
+		if(!$found) {
+			Authen::Krb5::get_in_tkt_with_password($client, $tgt, $pw, $cc_ldap) or die "Could not log on to Kerberos as administrator:" . Authen::Krb5::error(Authen::Krb5::error());
+		}
 		$self->{priv_kadm_cc} = $cc_krb;
 		$self->{priv_kadm_ccname} = "FILE:$tmpfile";
 	}
@@ -679,6 +691,7 @@ sub logout_admin($) {
 	$fname = $self->{priv_kadm_ccname};
 	$fname =~ s/FILE://;
 	$self->{priv_kadm_cc}->destroy();
+	delete $self->{priv_kadm_cc};
 	unlink($fname);
 }
 
@@ -795,7 +808,6 @@ sub deluser($$) {
 	my $user = shift;
 	my $ldap;
 	my $res;
-	my @command = ();
 
 	$self->need_ldap();
 	$self->need_admin_krb();
@@ -807,20 +819,13 @@ sub deluser($$) {
 	for my $entry($res->entries()) {
 		$ldap->delete($entry);
 	}
-	push @command, ( "/usr/sbin/kadmin", "-r", $self->{realm}, "-c", $self->{priv_kadm_ccname}, "-q", "'delprinc $user\\\@" . $self->{realm} . "'");
-	open KADMIN, @command;
+	open KADMIN, "/usr/sbin/kadmin -r '" . $self->{realm} . "' -c '". $self->{priv_kadm_ccname} . "' -q 'delprinc -force $user\@" . $self->{realm} . "' |";
 	while(<KADMIN>) {
-		if(/Are you sure you want to delete/) {
-			print KADMW "yes\n";
-		}
 	}
 	close KADMIN;
 	close KADMW;
-	open2 \*KADMIN, \*KADMW, "/usr/sbin/kadmin", "-r", $self->{realm}, "-c", $self->{priv_kadm_ccname}, "-q", "'delprinc $user/admin\\\@" . $self->{realm} . "'";
+	open KADMIN, "/usr/sbin/kadmin -r '" . $self->{realm} . "' -c '". $self->{priv_kadm_ccname} . "' -q 'delprinc -force $user/admin\@" . $self->{realm} . "' |";
 	while(<KADMIN>) {
-		if(/Are you sure you want to delete/) {
-			print KADMW "yes\n";
-		}
 	}
 	close KADMIN;
 	close KADMW;

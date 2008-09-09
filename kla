@@ -156,9 +156,9 @@ if($action eq "adduser") {
 	if(!defined($user)) {
 		die "Need a username\n";
 	}
-	if(!defined($pw)) {
-		die "Need a password\n";
-	}
+	#if(!defined($pw)) {
+	#	die "Need a password\n";
+	#}
 	if(defined $firstname) {
 		$vars{firstname}=$firstname;
 	}
@@ -175,7 +175,19 @@ if($action eq "adduser") {
 	$kla->bind();
 
 	$kla->createuser($user, \@groups, \&ask, \&err, \%vars) or die "Could not create user";
-
+	if(!defined($pw)) {
+		my $pw1;
+		my $mode = IO::Stty::stty(\*STDIN, '-g');
+		IO::Stty::stty(\*STDIN, '-echo');
+		print "Please enter the user's password:";
+		$pw1=<>;
+		print "\nPlease re-enter the same password, for verification:";
+		$pw=<>;
+		IO::Stty::stty(\*STDIN, $mode);
+		print "\n";
+		die "Sorry, the passwords were not the same" unless ($pw eq $pw1);
+		chomp $pw;
+	}
 	$kla->setpassword($user,$pw);
 } elsif($action eq "addgroup") {
 	my %hash;
@@ -248,3 +260,5 @@ if($action eq "adduser") {
 	print STDERR "Invalid action";
 	pod2usage(1);
 }
+
+print "Success!\n";
