@@ -82,6 +82,10 @@ C<kla -a addmember [ --group I<groupname> --member I<member> [ --member I<member
 
 C<kla -a makeadmin -u I<username>>
 
+C<kla -a listuser>
+
+C<kla -a listgroup>
+
 =head1 DESCRIPTION
 
 The kla command-line utility uses Kla.pm to create and maintain users
