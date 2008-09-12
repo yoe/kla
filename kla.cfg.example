@@ -2,7 +2,8 @@ binddn=uid=wouter,ou=People,dc=smartlounge,dc=be
 groupclasses=top:posixGroup
 ldapuri=ldap://front20.smartlounge.be
 realm=SMARTLOUNGE.BE
-userbase=ou=People,dc=smartlounge,dc=be
+ldapuserbase=ou=People,dc=smartlounge,dc=be
+ldapgroupbase=ou=Groups,dc=smartlounge,dc=be
 userask=firstname:Enter first name|lastname:Enter last name|trustmodel:Enter the access type:d:fullaccess|accessTo:What hosts should the user have access to:m:accessto
 userclasses=top:inetOrgPerson:person:organizationalPerson:shadowAccount:uidObject:posixAccount:trustAccount
 uservals=cn:$firstname $lastname|sn:$lastname|givenName:$firstname|uid:$user|homeDirectory:/home/$user|trustModel:$trustmodel|loginShell:/bin/bash|gecos:$firstname $lastname|userPassword:{SASL}$user\@realm|dn:uid=$user,ou=People,dc=smartlounge,dc=be|uidNumber:$uidnumber|gidNumber:2000
