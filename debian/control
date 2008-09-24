@@ -7,7 +7,7 @@ Standards-Version: 3.8.0
 
 Package: kla
 Architecture: all
-Depends: libnet-ldap-perl, libgssapi-perl, libauthen-sasl-perl, libsasl2-modules-gssapi-mit, krb5-user, ldap-utils
+Depends: libnet-ldap-perl, libgssapi-perl, libauthen-sasl-perl, libsasl2-modules-gssapi-mit, krb5-user, ldap-utils, libauthen-krb5-perl
 Description: Kerberos/LDAP Admin
  Kla is a simple tool and perl module to manage users and groups in LDAP
  and Kerberos.
