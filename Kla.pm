@@ -243,7 +243,7 @@ sub apply_string_template($\%) {
 sub missing ($) {
 	my $param = shift;
 
-	die "Need the $param config file parameter to perform this operation";
+	die "Need the '$param' config file parameter to perform this operation";
 }
 
 sub check_config($$) {
