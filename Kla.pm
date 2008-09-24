@@ -240,6 +240,21 @@ sub apply_string_template($\%) {
 	return $retval;
 }
 
+sub missing ($) {
+	my $param = shift;
+
+	die "Need the $param config file parameter to perform this operation";
+}
+
+sub check_config($$) {
+	my $self = shift;
+	my $param = shift;
+
+	if(!exists($self->{$param})) {
+		missing($param);
+	}
+}
+
 =pod
 
 =back
@@ -289,6 +304,8 @@ sub new($) {
 		if(exists($self->{binddn_template})) {
 			my %h = {};
 			$self->{dn} = apply_string_template($self->{binddn_template}, %h);
+		} else {
+			missing("binddn or binddn_template");
 		}
 	}
 	bless $self, $class;
@@ -344,6 +361,7 @@ sub bind($) {
 	my $sasl;
 	my $self = shift;
 
+	$self->check_config("ldapuri");
 	$ldap = Net::LDAP->new($self->{ldapuri}) or die $!;
 	$sasl = Authen::SASL->new(mech => "GSSAPI") or die $!;
 	$ldap->bind($self->{binddn}, sasl => $sasl, version => 3) or die $!;
@@ -376,7 +394,8 @@ sub add_elem($$\&\&\%) {
 	my $dn;
 
 	if(!defined($self->{"${elemname}vals"}) || !defined($self->{"${elemname}ask"})) {
-		die "configuration incomplete for creating ${elemname}s.";
+		print "configuration incomplete for creating ${elemname}s.\n";
+		missing("${elemname}vals and ${elemname}ask");
 	}
 	foreach $q(split /\|/, $self->{"${elemname}ask"}) {
 		my @elem = split /:/, $q;
@@ -432,11 +451,13 @@ sub add_elem($$\&\&\%) {
 			$attrs{$elem[0]}=$$vals{$elem[0]};
 		}
 	}
+	$self->check_config("realm");
 	$$vals{realm}=$self->{realm};
 	foreach $attr(split /\|/,$self->{"${elemname}vals"}) {
 		my @attr = split(/:/, $attr, 2);
 		$attrs{$attr[0]} = apply_string_template($attr[1], %$vals);
 	}
+	$self->check_config("${elemname}classes");
 	foreach (split /:/, $self->{"${elemname}classes"}) {
 		push @objclass, $_;
 	}
@@ -503,6 +524,7 @@ sub createuser($$\@\&\&\%) {
 	my $vars = shift;
 
 	$self->need_ldap();
+	$self->check_config("ldapuserbase");
 	$res = $ldap->search(base => $self->{ldapuserbase},
 			     filter => "(&(objectClass=posixAccount)(uid=$user))");
 	$res->code && die $res->error;
@@ -519,6 +541,7 @@ sub createuser($$\@\&\&\%) {
 	# kadmin wants to warn us that the credentials cache hasn't been
 	# destroyed. That's all nice and dandy, but we don't need no stinking
 	# beeping, thanks.
+	$self->check_config("realm");
 	open KADMIN, "/usr/sbin/kadmin -r " . $self->{realm} . " -c " . $self->{priv_kadm_ccname} . " -q 'addprinc -randkey $user\@" . $self->{realm} . "'|";
 	while(<KADMIN>) { }
 	close KADMIN;
@@ -741,6 +764,7 @@ sub setpassword($$$) {
 	}
 	# This is rather unsafe. We really, really need some better way to do
 	# this, but the Perl library is currently not yet functional...
+	$self->check_config("realm");
 	open KADMIN, "/usr/sbin/kadmin -r " . $self->{realm} . " -c " . $self->{priv_kadm_ccname} . " -q 'cpw -pw $newpw $user\@" . $self->{realm} . "'|";
 	while(<KADMIN>) { }
 	close KADMIN;
@@ -754,6 +778,7 @@ sub findHighestUid($) {
 
 	$ldap = $self->{priv_ldapobj};
 	$self->{priv_minuid} = $self->{minuid} unless defined($self->{priv_minuid});
+	$self->check_config("ldapuserbase");
 	do {
 		$res=$ldap->search(base => $self->{ldapuserbase},
 				   filter => "(objectClass=posixAccount)",
@@ -779,6 +804,7 @@ sub findHighestGid($) {
 
 	$ldap = $self->{priv_ldapobj};
 	$self->{priv_mingid} = $self->{mingid} unless defined($self->{priv_mingid});
+	$self->check_config("ldapgroupbase");
 	do {
 		$res=$ldap->search(base => $self->{ldapgroupbase},
 				   filter => "(objectClass=posixGroup)",
@@ -804,6 +830,7 @@ sub addmembers($$\@) {
 	my $res;
 
 	$self->need_ldap();
+	$self->check_config("ldapgroupbase");
 	foreach $member(@$members) {
 		$res = $self->{priv_ldapobj}->modify("cn=$group, " . $self->{ldapgroupbase}, add => { "memberuid", $member });
 		$res->code && die $res->error
@@ -819,6 +846,7 @@ sub delgroup($$) {
 	$self->need_ldap();
 	$self->need_admin_krb();
 	$ldap = $self->{priv_ldapobj};
+	$self->check_config("ldapgroupbase");
 	$res = $ldap->search(base => $self->{ldapgroupbase},
 			     filter => "(&(objectClass=posixGroup)(cn=$group))");
 	$res->code && $res->error;
@@ -837,6 +865,7 @@ sub deluser($$) {
 	$self->need_ldap();
 	$self->need_admin_krb();
 	$ldap = $self->{priv_ldapobj};
+	$self->check_config("ldapuserbase");
 	$res = $ldap->search(base => $self->{ldapuserbase},
 			     filter => "(&(objectClass=posixAccount)(uid=$user))");
 	$res->code && $res->error;
@@ -864,6 +893,7 @@ sub list($$) {
 	my $attr;
 	my $res;
 
+	$self->check_config("ldap${which}base");
 	$res = $ldap->search(base => $self->{"ldap${which}base"},
 			     scope => "sub",
 			     filter => "(objectClass=*)",
