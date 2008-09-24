@@ -1,3 +1,10 @@
+kla (0.2ubuntu1) intrepid; urgency=low
+
+  * Add two error handling subs, and use them. This allows us to give 
+    hints to the user when things fail.
+
+ -- Wouter Verhelst <wouter@callisto.leuven.smartlounge.be>  Wed, 24 Sep 2008 12:21:41 +0200
+
 kla (0.2) unstable; urgency=low
 
   * Add documentation for listuser/listgroup
