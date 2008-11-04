@@ -445,10 +445,6 @@ sub add_elem($$\&\&\%) {
 			}
 			$attrs{$elem[0]}=\@attrvals if scalar(@attrvals);
 			$$vals{$elem[0]}=$attrval if scalar($attrval);
-		} else {
-			# This may be incorrect at times, but then it's going
-			# to be overwritten in a moment, anyway...
-			$attrs{$elem[0]}=$$vals{$elem[0]};
 		}
 	}
 	$self->check_config("realm");
