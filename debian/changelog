@@ -1,3 +1,10 @@
+kla (0.4) hardy; urgency=low
+
+  * Kla::createuser(): Do not assign a value from %$vals to %attrs; this
+    only confuses matters unnecessarily.
+
+ -- Wouter Verhelst <wouter@nixsys.be>  Tue, 04 Nov 2008 14:26:34 +0100
+
 kla (0.3) hardy; urgency=low
 
   * Add two error handling subs, and use them. This allows us to give 
