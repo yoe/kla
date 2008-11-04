@@ -531,7 +531,7 @@ sub createuser($$\@\&\&\%) {
 	$self->add_elem("user", $asksub, $errsub, $vars);
 	my @members = ( $user );
 	for my $group (@$groups) {
-		$self->addmembers($group, @members);
+		$self->addmembers($group, \@members);
 	}
 	$self->need_admin_krb();
 	# kadmin wants to warn us that the credentials cache hasn't been

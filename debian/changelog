@@ -2,6 +2,8 @@ kla (0.4) hardy; urgency=low
 
   * Kla::createuser(): Do not assign a value from %$vals to %attrs; this
     only confuses matters unnecessarily.
+  * Kla::createuser(): explicitly create a reference to the array that
+    we pass on to addmember(). Prototypes don't work on OO, stupid!
 
  -- Wouter Verhelst <wouter@nixsys.be>  Tue, 04 Nov 2008 14:26:34 +0100
 
