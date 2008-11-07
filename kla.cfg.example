@@ -11,3 +11,6 @@ minuid=2000
 maxuid=10000
 mingid=2000
 maxgid=10000
+groupask=member:Enter member username:m:memberUid
+groupclasses=top:posixGroup
+groupvals=cn: $group|dn:cn=$group,ou=Groups,dc=smartlounge,dc=be|gidNumber: $gidnumber|

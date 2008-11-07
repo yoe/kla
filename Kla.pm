@@ -570,7 +570,6 @@ with an appropriate error message.
 sub creategroup($$\@\&\&\%) {
 	my $self = shift;
 	my $group = shift;
-	my $members = shift;
 	my $ask = shift;
 	my $err = shift;
 	my $vals = shift;
@@ -590,7 +589,6 @@ sub creategroup($$\@\&\&\%) {
 	$self->findHighestGid();
 	$vals->{gidnumber} = $self->{priv_mingid} + 1;
 	$vals->{group}=$group;
-	$vals->{member}=$members;
 	$self->add_elem("group", $ask, $err, $vals);
 }
 

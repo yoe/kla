@@ -206,9 +206,6 @@ if($action eq "adduser") {
 		die "Need exactly one group when adding groups";
 	}
 	$kla->bind();
-	if($#members > 0) {
-		$hash{memberuid}=\@members;
-	}
 	$kla->creategroup($groups[0], \@members, \&ask, \&err, \%hash);
 } elsif($action eq "password") {
 	if(!defined $user) {
