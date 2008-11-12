@@ -1,3 +1,8 @@
+kla (0.6) hardy; urgency=low
+
+  * Fix group stuff (for real)
+
+ -- Wouter Verhelst <wouter@nixsys.be>  Wed, 12 Nov 2008 18:53:40 +0100
 kla (0.5) hardy; urgency=low
 
   * Fix group stuff
