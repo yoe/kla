@@ -206,7 +206,8 @@ if($action eq "adduser") {
 		die "Need exactly one group when adding groups";
 	}
 	$kla->bind();
-	$kla->creategroup($groups[0], \@members, \&ask, \&err, \%hash);
+	$kla->creategroup($groups[0], \&ask, \&err, \%hash);
+	$kla->addmembers($groups[0], \@members);
 } elsif($action eq "password") {
 	if(!defined $user) {
 		die "Please specify the username whose password to change,\nor use kpasswd to change your own\n";
